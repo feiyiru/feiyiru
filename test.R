@@ -1,1 +1,1 @@
-PRINT('Hello World')
+PRINT('Hello fuck World')
