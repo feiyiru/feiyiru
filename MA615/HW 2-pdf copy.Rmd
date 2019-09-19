@@ -1,0 +1,68 @@
+
+---
+title: "MA615 HW2"
+author: "Yiru Fei"
+date: "2019/9/18"
+
+output:
+  pdf_document:
+    extra_dependencies: xcolor
+  word_document: default
+---
+
+
+
+## Extra from:
+Bradley Efron and Trevor Hastie  
+\textit{Computer Age Statistical Inference: Algorithms, Evidence, and Data Science}  
+\textit{Cambridge University Press, 2016}  
+\textit{\url{https://web.stanford.edu/~hastie/CASI_files/PDF/casi.pdf}}
+\newline 
+\newline
+\newline
+\newline
+\newline  
+
+
+\Large \qquad Modern Bayesian practice uses various strategies to construct an appropriate “prior” $g(\mu)$in the absence of prior experience, leaving many statisticians unconvinced by the resulting Bayesian inferences. Our second example illustrates the difficulty.  
+\newline
+\newline  
+\large \textcolor{blue}{\textbf{Table 3.1}} $Scores$ $from$ $two$ $tests$ $taken$ $by$ $22$ $students, $ \textcolor{teal}{\textbf{mechanics}}  $and$ \textcolor{teal}{\textbf{vectors}}. 
+\newline
+
+
+\begin{center}
+\begin{tabular}{l l l l l l l l l l l l l l}
+ \textcolor{white}{\textbf{}} & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 & 10 & 11\\
+ \hline  
+ \textcolor{teal}{\textbf{mechanics}} & 7 & 44 & 49 & 59 & 34 & 46 & 0 & 32 & 49 & 52 & 44 \\
+ \textcolor{teal}{\textbf{vectors}} & 51 & 69 & 41 & 70 & 42 & 40 & 40 & 45 & 57 & 64 & 61\\
+ \hline
+ \\
+\end{tabular}
+\end{center}
+
+
+\begin{center}
+\begin{tabular}{l l l l l l l l l l l l l l}
+ \textcolor{white}{\textbf{}} & 12 & 13 & 14 & 15 & 16 & 17 & 18 & 19 & 20 & 21 & 22\\
+ \hline  
+ \textcolor{teal}{\textbf{mechanics}} & 36 & 42 & 5 & 22 & 18 & 41 & 48 & 31 & 42 & 46 & 63 \\
+ \textcolor{teal}{\textbf{vectors}} & 59 & 60 & 30 & 58 & 51 & 63 & 38 & 42 & 69 & 49 & 63\\
+ \hline
+ \\
+\end{tabular}
+\end{center}
+\bigskip
+\Large \qquad Table 3.1 shows the scores on two tests, \textcolor{teal}{\textbf{mechanics}} and \textcolor{teal}{\textbf{vectors}}, achieved by $n$ = 22 students. The sample correlation coefficient between the two scores is $\hat{\theta}$= 0.498.
+
+$$
+\hat{\theta} = \sum_{i=1}^{22}(m_i-\bar{m})(v_i-\bar{v}) \bigg{/}\bigg{[} \sum_{i=1}^{22}(m_i-\bar{m})^2\sum_{i=1}^{22}(v_i-\bar{v})^2 \bigg{]}^{1/2}
+$$
+\bigskip  
+
+\Large with $m$ and $v$ short for \textcolor{teal}{\textbf{mechanics}} and \textcolor{teal}{\textbf{vectors}}, $\bar{m}$ and $\bar{v}$ their averages.
+
+
+
+
