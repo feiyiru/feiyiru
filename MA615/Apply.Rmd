@@ -31,7 +31,7 @@ And now that you know how to produce the table can you improve the code
 by using an **apply** functional?
 
 
-```{r}
+```{r,echo=FALSE}
 data(mpg)
 Class <- c("2seater","compact","midsize","minivan","pickup","subcompact","suv")
 cty_mean <- by(mpg, mpg$class, function(x) c(mean(x$cty)))
@@ -56,7 +56,7 @@ The next table is a bit tricky.
 
 
 
-```{r}
+```{r,echo=FALSE}
 
 ##  You probably want to get started with a little investigation. 
 ##  Using unique(mpg$year), you find out that there are only two years - 1999, 2008.
@@ -134,7 +134,7 @@ kable(tbl_2, digits = 2, format = "latex", booktabs=TRUE, ,caption = "Top 3 MPG 
 
 
 
-```{r}
+```{r,echo=FALSE}
 
 
 
@@ -168,7 +168,7 @@ ggplot(mpg) +
 
 Boxplots
 
-```{r}
+```{r,echo=FALSE}
 
 
 

@@ -10,13 +10,14 @@ output:
   word_document: default
 ---
 
+## Extract from:
+\qquad Bradley Efron and Trevor Hastie  
 
+\qquad $Computer Age Statistical Inference: Algorithms, Evidence, and Data Science$  
 
-## Extra from:
-Bradley Efron and Trevor Hastie  
-\textit{Computer Age Statistical Inference: Algorithms, Evidence, and Data Science}  
-\textit{Cambridge University Press, 2016}  
-\textit{\url{https://web.stanford.edu/~hastie/CASI_files/PDF/casi.pdf}}
+\qquad $Cambridge University Press, 2016$  
+
+\qquad $https://web.stanford.edu/~hastie/CASI_files/PDF/casi.pdf$
 \newline 
 \newline
 \newline

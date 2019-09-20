@@ -135,10 +135,9 @@ kable(tbl_2, digits = 2, format = "html", booktabs=TRUE, ,caption = "Top 3 MPG P
                    "Highway 2008"=2))
 
 ```
-#Plot
+ 
 
-
-##
+## Plot
 <div class="centered">
 </div>
 
@@ -172,9 +171,10 @@ gridExtra::grid.arrange(x,y,ncol=1)
 
 ```
 
-##
+
+## Boxplots  
+
 <div class="centered">
-Boxplots
 </div>
 
 ```{r,echo=FALSE}
