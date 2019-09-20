@@ -137,7 +137,7 @@ kable(tbl_2, digits = 2, format = "html", booktabs=TRUE, ,caption = "Top 3 MPG P
 ```
  
 
-## Plot
+## Plot 1
 <div class="centered">
 </div>
 
@@ -147,17 +147,21 @@ kable(tbl_2, digits = 2, format = "html", booktabs=TRUE, ,caption = "Top 3 MPG P
 
 library(ggplot2)
 
-x=ggplot(mpg) +
+ggplot(mpg) +
  aes(x = displ, y = cty) +
  geom_point(aes(color=class),size=2) + geom_smooth() +
  scale_color_hue() +
  theme_minimal(base_size = 16) +
  facet_wrap(vars(year)) + 
   labs(x = "Engine Displacement",y = "City Mileage" ,title = "City MPG by Class of Car: 1999, 2008")
+```
+
+## Plot 2
+<div class="centered">
+</div>
+```{r, echo=FALSE} 
  
- 
- 
- y=ggplot(mpg) +
+ggplot(mpg) +
  aes(x = displ, y = hwy) +
  geom_point(aes(color=class),size=2) + geom_smooth() +
  scale_color_hue() +
@@ -166,13 +170,12 @@ x=ggplot(mpg) +
   labs(x = "Engine Displacement", y = "Highway Mileage", title = "Highway MPG by Class of Car: 1999, 2008")
  
  
-gridExtra::grid.arrange(x,y,ncol=1)
 ##esquisser(mpg)
 
 ```
 
 
-## Boxplots  
+## Boxplots 1 
 
 <div class="centered">
 </div>
@@ -181,20 +184,26 @@ gridExtra::grid.arrange(x,y,ncol=1)
 
 
 
-a = ggplot(mpg) +
+ggplot(mpg) +
  aes(x = class, y = cty) +
  geom_boxplot(fill = "#0c4c8a") +
  theme_minimal(base_size=16) +
   labs(x = "Car Class", y = "City Mileage", title = "City MPG by Class of Car: 1999, 2008")
+```
 
+## Boxplots 2
 
-b = ggplot(mpg) +
+<div class="centered">
+</div>
+
+```{r, echo=FALSE}
+ggplot(mpg) +
  aes(x = class, y = hwy) +
  geom_boxplot(fill = "#0c4c8a") +
  theme_minimal(base_size=16) +
   labs(x = "Car Class", y = "Highway Mileage", title = "Highway MPG by Class of Car: 1999, 2008")
 
-gridExtra::grid.arrange(a,b,ncol=1)
+
 
 
 
