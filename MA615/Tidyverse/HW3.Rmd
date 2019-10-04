@@ -1,0 +1,347 @@
+---
+title: "Tidyverse Problem Set"
+author: "Yiru Fei"
+date: "10/2/2019"
+output:
+  pdf_document: default
+  word_document: default
+subtitle: MA 615
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(gapminder)
+library(knitr)
+library(kableExtra)
+library(magrittr)
+library(tidyverse)
+library(AER)
+library(babynames)
+library(gridExtra)
+```
+\textbf{\textcolor{blue}{Problem 1}}  
+
+## Load the gapminder data from the gapminder package.
+
+```{r}
+df = gapminder
+```
+## How many continents are included in the data set?
+
+```{r}
+count = df %>% count(continent)
+```
+There are 5 contients in the data set.  
+
+## How many countrys are included? How many countries per continent?  
+
+```{r}
+m_1 = df %>% count(country)
+m_2 = df %>% group_by(continent) %>% summarise(country %>% unique %>% length)
+```
+There are 142 countries. Africa has 52 countries, Americas has 25 countries, Asia has 33 countries, Europe has 30 countries and Oceania has 2 countries.  
+
+## Using the gapminder data, produce a report showing the continents in the dataset, total population per continent, and GDP per capita. Be sure that the table is properly labeled and suitable for inclusion in a printed report.
+
+```{r}
+a = df %>% group_by(continent) %>% summarise(population_million = sum(pop)/1000000, GDP_million = sum(gdpPercap)/1000000)
+kable(cbind(a), caption = "Total population and total GDP for each continents", align = "c", booktab =T, format = "latex",longtable = F) %>% kable_styling(latex_options = c("HOLD_position"))
+```
+
+## Produce a well-labeled table that summarizes GDP per capita for the countries in each continent, contrasting the years 1952 and 2007.  
+
+```{r}
+Summary_1952 = df %>% filter(year == 1952)
+Summary_2007 = df %>% filter(year == 2007)
+b_1 = Summary_1952 %>% group_by(continent) %>% summarise(Total_GDP_thousand = sum(gdpPercap)/1000, Ave_GDP_thousand = mean(gdpPercap)/1000, Max_GDP_thousand = max(gdpPercap)/1000, Min_GDP_thousand = min(gdpPercap)/1000)
+b_2 = Summary_2007 %>% group_by(continent) %>% summarise(Total_GDP_thousand = sum(gdpPercap)/1000, Ave_GDP_thousand = mean(gdpPercap)/1000, Max_GDP_thousand = max(gdpPercap)/1000, Min_GDP_thousand = min(gdpPercap)/1000)
+kable(cbind(b_1), caption = "Summary GDP for each continents in 1952", align = "c", booktab =T, format = "latex",longtable = F) %>% kable_styling(latex_options = c("HOLD_position"))
+kable(cbind(b_2), caption = "Summary GDP for each continents in 2007", align = "c", booktab =T, format = "latex",longtable = F) %>% kable_styling(latex_options = c("HOLD_position"))
+```
+
+## Product a plot that summarizes the same data as the table. There should be two plots per continent.
+```{r}
+
+a_1 = ggplot(b_1, aes(x="", y=Total_GDP_thousand,fill=continent))+
+geom_bar(width = 1, stat = "identity", color = "white") +
+  coord_polar("y", start = 0)+
+  geom_text(aes(y = Total_GDP_thousand, label = continent))
+print(a_1 + ggtitle("Total GDP of each continent in 1952"))
+```
+
+```{r}
+a_2 = ggplot(b_2, aes(x="", y=Total_GDP_thousand,fill=continent))+
+geom_bar(width = 1, stat = "identity", color = "white") +
+  coord_polar("y", start = 0)+
+  geom_text(aes(y = Total_GDP_thousand, label = continent))
+print(a_2 + ggtitle("Total GDP of each continent in 2007"))
+```
+
+
+## Which countries in the dataset have had periods of negative population growth? Illustrate your answer with a table or plot.
+```{r}
+ggplot(subset(gapminder),
+       aes(x = year, y = pop, group = country, color = country)) +
+  geom_line(lwd = 0.5, show.legend = FALSE) + facet_wrap(~ continent) +
+  scale_color_manual(values = country_colors)
+df_Asia = df %>% filter(continent == "Asia")
+```
+Asia had periods of negative population growth.  
+
+For Afghanistan:  
+
+```{r}
+Afg <- df_Asia[1:12,]
+plot(y=Afg$pop,x=Afg$year,type = "o",xlab = "years" ,ylab = "pop", main = "Total population in Afghanistan from 1952 to 2007")
+```
+There was a decrease from 1977 to 1982 in Afghanistan.  
+
+For Cambodia:  
+
+```{r}
+Cam <- df_Asia[37:48,]
+plot(y=Cam$pop,x=Cam$year,type = "o",xlab = "years" ,ylab = "pop", main = "Total population in Afghanistan from 1952 to 2007")
+```
+There was a decrease from 1972 to 1977 in Cambodia.  
+
+For Kuwait:  
+
+```{r}
+Kuw <- df_Asia[181:192,]
+plot(y=Kuw$pop,x=Kuw$year,type = "o",xlab = "years" ,ylab = "pop", main = "Total population in Afghanistan from 1952 to 2007")
+```
+There was a decrease from 1987 to 1992 in Kuwait.  
+
+For Lebanon:  
+
+```{r}
+Leb <- df_Asia[193:204,]
+plot(y=Leb$pop,x=Leb$year,type = "o",xlab = "years" ,ylab = "pop", main = "Total population in Afghanistan from 1952 to 2007")
+```
+There was a decrease from 1977 to 1987 in Lebanon.  
+
+For West Bank and Gaza:  
+
+```{r}
+WBG <- df_Asia[373:384,]
+plot(y=WBG$pop,x=WBG$year,type = "o",xlab = "years" ,ylab = "pop", main = "Total population in Afghanistan from 1952 to 2007")
+```
+There was a decrease from 1967 to 1972 in Wesr Bank and Gaza.  
+
+## Which countries in the dataset have had the highest rate of growth in per capita GDP? Illustrate your answer with a table or plot.  
+
+```{r}
+c = Summary_1952 %>% mutate(rate = (Summary_2007$gdpPercap-Summary_1952$gdpPercap)/Summary_1952$gdpPercap)
+cc = c %>% filter(rate == max(rate))
+
+```
+Equatorial Guinea has the highest rate of growth in per capita GDP 3135.542%.  
+
+\textbf{\textcolor{blue}{Problem 2}}  
+
+```{r}
+data("Fertility")
+da = Fertility
+```
+
+## There are four possible gender combinations for the first two Children. Product a plot the contracts the frequency of these four combinations. Are the frequencies different for women in their 20s and wemen who are older than 29?  
+
+```{r}
+da <- 
+  da %>%
+  mutate(gender_f = case_when(
+  gender1 == "male"  ~ 20,
+  gender1 == "female"  ~ 10))
+da <- 
+  da %>%
+  mutate(gender_s = case_when(
+  gender2 == "male"  ~ 2,
+  gender2 == "female"  ~ 1))
+da = da%>% mutate(combine = gender_f +gender_s)
+da <- 
+  da %>%
+  mutate(combine = case_when(
+  combine == 11  ~ "female,female",
+  combine == 12  ~ "female,male",
+  combine == 21  ~ "male,female",
+  combine == 22  ~ "male,male",
+  ))
+count_gender = da %>% count(combine)
+count_gender = count_gender %>% mutate(rate = c(60946/sum(n),62724/sum(n),63185/sum(n),67799/sum(n)))
+f = ggplot(count_gender, aes(x="", y=rate,fill=combine))+
+geom_bar(width = 1, stat = "identity", color = "white") +
+  coord_polar("y", start = 0)+
+  geom_text(aes(y = rate, label = combine))
+print(f + ggtitle("Frequency of four combinations"))
+```
+
+```{r}
+da_young = da %>% filter(age <= 29)
+da_old = da %>% filter(age > 29)
+count_y = da_young %>% count(combine)
+count_o = da_old %>% count(combine)
+count_o = count_o %>% mutate(rate = c(38763/sum(n),40216/sum(n),40532/sum(n),43294/sum(n)))
+count_y = count_y %>% mutate(rate = c(22183/sum(n),22508/sum(n),22653/sum(n),24505/sum(n)))
+f_1  = ggplot(data=count_o, aes(x=combine, y=rate)) +
+geom_bar(stat="identity")
+print(f_1 + ggtitle("Frequency of four combinations for old women"))
+```
+
+```{r}
+f_2 = ggplot(data=count_y, aes(x=combine, y=rate)) +
+geom_bar(stat="identity")
+print(f_2 + ggtitle("Frequency of four combinations for young women"))
+```
+
+## Produce a plot that contrasts the frequency of having more than two children by race and ethnicity.  
+
+```{r}
+more = da %>% filter(morekids == "yes")
+e_1 = more %>% count(afam)
+e_2 = more %>% count(hispanic)
+e_3 = more %>% count(other)
+df_e = data.frame(NorY = rep(c("no","yes"),each = 3), 
+                  race = rep(c("afam","hispanic","other"),2), 
+                   n = c(90887,87203,90269,6025,9709,6643))
+e = ggplot(data=df_e, aes(x=race, y=n, fill=NorY)) +
+geom_bar(stat="identity")
+print(e + ggtitle("Frequency of having more than two children by race and ethnicity"))
+```
+
+\textbf{\textcolor{blue}{Problem 3}}  
+
+## Use the mtcars and mpg datasets.  
+
+```{r,results="hide"}
+str(mtcars)
+str(mpg)
+```
+
+## How many times does the letter “e” occur in mtcars rownames?  
+
+```{r}
+rn = row.names(mtcars)
+letter = sapply(letters, function(x) x<-sum(x==unlist(strsplit(rn,""))))
+```
+There are 25 "e" occur in the mtcars rownames.  
+
+## How many cars in mtcars have the brand Merc?
+There are 7 cars in mtcars have the brand Merc.  
+
+## How many cars in mpg have the brand(“manufacturer” in mpg) Merc?
+```{r}
+Merc = mpg %>% count(manufacturer)
+```
+There are 4 cars in mpg have the brand Merc.  
+
+## Contrast the mileage data for Merc cars as reported in mtcars and mpg. Use tables, plots, and a short explaination.
+```{r}
+M_1 = mpg %>% filter(manufacturer == "mercury")
+M_2 = mtcars[8:14,]
+c_mtcars = row.names(M_2)
+tbl_mtcars = cbind(c_mtcars, M_2$mpg)
+tbl_mpg = cbind(M_1$manufacturer, M_1$cty, M_1$hwy)
+
+kable(tbl_mtcars, digits = 2, align = "c", format = "latex", booktabs=TRUE, ,caption = "Mileage data for Merc cars in mtcars",col.names = c("manufacturer", "mpg" ))
+```  
+
+
+```{r}
+kable(tbl_mpg, digits = 2, align = "c", format = "latex", booktabs=TRUE, ,caption = "Mileage data for Merc cars in mpg", col.names = c("manufacturer",  "cty" ,"hwy")) 
+
+```
+
+\textbf{\textcolor{blue}{Problem 4}}  
+
+```{r}
+bb = babynames
+random = sample(1:1924665,500000,replace = F)
+sample = babynames[random,]
+```
+
+## Produce a tabble that displays the five most popular boy names and girl names in the years 1880,1920, 1960, 2000.  
+
+```{r}
+name_M = sample %>% filter(sex == "M")
+name_F = sample %>% filter(sex == "F")
+name_M_1880 = name_M %>% filter(year == 1880)
+name_M_1920 = name_M %>% filter(year == 1920)
+name_M_1960 = name_M %>% filter(year == 1960)
+name_M_2000 = name_M %>% filter(year == 2000)
+name_F_1880 = name_F %>% filter(year == 1880) 
+name_F_1920 = name_F %>% filter(year == 1920) 
+name_F_1960 = name_F %>% filter(year == 1960)
+name_F_2000 = name_F %>% filter(year == 2000)
+name_M_1880 = name_M_1880[with(name_M_1880,order(n)),]
+name_M_1920 = name_M_1920[with(name_M_1920,order(n)),]
+name_M_1960 = name_M_1960[with(name_M_1960,order(n)),]
+name_M_2000 = name_M_2000[with(name_M_2000,order(n)),]
+name_F_1880 = name_F_1880[with(name_F_1880,order(n)),]
+name_F_1920 = name_F_1920[with(name_F_1920,order(n)),]
+name_F_1960 = name_F_1960[with(name_F_1960,order(n)),]
+name_F_2000 = name_F_2000[with(name_F_2000,order(n)),]
+name_M_1880 = tail(name_M_1880, n=5)
+name_M_1920 = tail(name_M_1920, n=5)
+name_M_1960 = tail(name_M_1960, n=5)
+name_M_2000 = tail(name_M_2000, n=5)
+name_F_1880 = tail(name_F_1880, n=5)
+name_F_1920 = tail(name_F_1920, n=5)
+name_F_1960 = tail(name_F_1960, n=5)
+name_F_2000 = tail(name_F_2000, n=5)
+M_1880 = name_M_1880[3]
+M_1920 = name_M_1920[3]
+M_1960 = name_M_1960[3]
+M_2000 = name_M_2000[3]
+F_1880 = name_F_1880[3]
+F_1920 = name_F_1920[3]
+F_1960 = name_F_1960[3]
+F_2000 = name_F_2000[3]
+tbl = cbind(M_1880,F_1880,
+            M_1920,F_1920,
+            M_1960,F_1960,
+            M_2000,F_2000)
+colnames(tbl) <-   c('Male', 'Female', 
+                     "Male", "Female",
+                     'Male', 'Female',
+                     "Male", "Female")
+kable(tbl, digits = 2,align = "c", format = "latex", booktabs=TRUE, ,caption = "The five most popular boy names and girl names in the years 1880,1920, 1960, 2000") %>% kable_styling() %>%
+  add_header_above(c("1880"=2, 
+                     "1920"=2,
+                     "1960"=2,
+                   "2000"=2))
+```
+
+## What names overlap boys and girls?  
+
+```{r}
+h = sample %>% group_by(name) %>% summarise(lap = length(sex)) %>% filter(lap>1)
+```
+In the sample size, there are 51500 names overlap boys and girls.  
+
+## What names were used in the 19th century but have not been used in the 21th century?  
+
+```{r}
+l_2 = sample %>% filter(year>1999)
+l_2 = l_2 %>% count(name)
+l_1 = sample %>% filter(year<1900)
+l_1 = l_1 %>% count(name)
+l = subset(l_1, !(name %in% l_2$name))
+```
+There 1040 names were used in the 19th century but have not been used in the 21th century.  
+
+## Produce a chart that shows the relative frequency of the names “Donald”, “Hilary”, “Hillary”, “Joe”, “Barrack”, over the years 1880 through 2017.  
+
+```{r}
+z_1 = sample %>% filter(year >1879 & year <2018) 
+z_2 = z_1 %>%filter(name == c("Donald", "Hilary", "Hillary", "Joe", "Barrack"))
+y = z_2 %>% group_by(name) %>% summarise(n = sum(n))
+data =  y %>% mutate(frequency = c(73285/sum(n),3667/sum(n),3283/sum(n),30713/sum(n)))
+kable(data, digits = 2, align = "c", format = "latex", booktabs=TRUE, ,caption = "Frequency of the names -- Donald, Hilary, Hillary, Joe, Barrack")
+```
+
+
+```{r}
+zz = ggplot(data, aes(x = name,y = frequency)) +
+geom_bar(stat = "identity")
+print(zz + ggtitle("Frequency of the names -- Donald, Hilary, Hillary, Joe, Barrack"))
+```
