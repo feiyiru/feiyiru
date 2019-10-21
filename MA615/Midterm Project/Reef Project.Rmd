@@ -1,0 +1,131 @@
+---
+title: "Midterm Project"
+author: "Yiru Fei"
+date: "10/15/2019"
+output: pdf_document
+---
+
+## Introduction
+\qquad Coral reef fish are fish which live amongst or in close relation to coral reefs. Coral reefs occupy less than one percent of the surface area of the world oceans, but still they provide a home for 25 percent of all marine fish species. There are two major regions of coral reef development recognized; the Indo-Pacific and the tropical western. Each of these two regions contains its own unique coral reef fish fauna with no natural overlap in species.  
+
+\qquad This project will define whether the species and amount of reef fish will increase with the depth of sea increase by using the dataset from the Reef Life Survey.  
+
+## Data Description
+\qquad This project used the dataset collected around Australia where belongs to the central Indo-Pacific, and the spatial location is from Lat/Lon $-36.585, 132.429$ to Lat/Lon $-31.18, 139.812$. This dataset contains records of body fishes and elasmobranchs collected by a combination of experienced scientists and skilled recreational divers along 50 m transects on shallow rocky and coral reefs.  
+
+\qquad Fishes within $5$ m of the line are recorded separately for each side of the transect line, with each side referred to as a ‘block’. Thus, two blocks form a complete transect.  Multiple transects are usually surveyed at each site, usually along different depth contours. Sites are distinguished by unique site codes with latitude and longitude recorded in decimal degrees using a handheld GPS unit, or taken from Google Earth.  
+
+\qquad In coral reefs with high fish species richness and densities, the order of priority for recording accurately is to first ensure all species observed along transects are included, then tallies of individuals of larger or rare species, then finally estimates of abundance for more common species. Only divers with the most extensive and appropriate experience undertake surveys in diverse coral reefs. Nearly all fishes observed are identified to species level, with photographs of unknown species taken with an underwater digital camera for later identification using appropriate field guides and consultation with taxonomic experts for the particular group, as necessary. However, the occurrence IDs in this dataset are currently not stable. 
+
+## Import Original Dataset
+```{r setup, include=FALSE}
+reef <- read.csv("~/Desktop/MSSP/MA615/project/Midterm Project/Reef_Life_Survey_(RLS)#_Global_reef_fish_dataset-fish_surveys.csv")
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+library(knitr)
+```
+This data set contains 20 colums, 23655 entries. The following four tables display the first six data of every columns.  
+
+```{r}
+da1 = head(reef[,1:5])
+kable(cbind(da1), caption = "First five columns of reef", align = "c", booktab =T, format = "latex",longtable = F) %>% kable_styling(latex_options = c("HOLD_position"))
+da2 = head(reef[,6:10])
+kable(cbind(da2), caption = "Second five columns of reef", align = "c", booktab =T, format = "latex",longtable = F) %>% kable_styling(latex_options = c("HOLD_position"))
+da3 = head(reef[,11:15])
+kable(cbind(da3), caption = "Third five columns of reef", align = "c", booktab =T, format = "latex",longtable = F) %>% kable_styling(latex_options = c("HOLD_position"))
+da4 = head(reef[,16:20])
+kable(cbind(da4), caption = "Last five columns of reef", align = "c", booktab =T, format = "latex",longtable = F) %>% kable_styling(latex_options = c("HOLD_position"))
+```
+
+## Filter by depth
+```{r}
+reef_depth = reef %>% count(Depth)
+ggplot(data=reef_depth, aes(x = Depth,y=n)) +
+  geom_bar( stat = "identity")
+```
+From the bar chart of depth, we can see the majority amount of reef fish are living around the $5$ meter water depth .  
+
+
+```{r}
+reef_phylum  = reef %>% group_by(Depth) %>% count(Phylum)
+reef_p = reef %>% count(Phylum)
+ggplot(data=reef_p, aes(x = "",y=n, fill = Phylum)) +
+  geom_bar(width = 1, stat = "identity")+coord_polar("y", start=0) +labs(title="Phylum")
+```
+  
+  
+From the pie chart of phylum, we can know that the most phylum is Chordata in this area. Therefore, I count the total amount of chordata in different depths.  
+
+```{r}
+reef_class = reef %>% group_by(Depth) %>% count(Class)
+reef_c = reef %>% group_by(Phylum)%>% count(Class)
+kable(reef_c, digits = 2, align = "c", format = "latex", booktabs=TRUE, ,caption = "Total Amount of Different Class", col.names = c("Phylum",  "Class" ,"Sum")) %>% kable_styling(latex_options = "hold_position")
+```  
+  
+  
+From the table of class, we can know that the most class is Actinopterygii in this area. Therefore, I count the total amount of Actinopterygii in different depths.  
+
+```{r}
+reef_family  = reef %>% group_by(Depth) %>% count(Family)
+reef_f = reef %>% group_by(Class) %>% count(Family)
+reef_f = reef_f[with(reef_f,order(-n)),]
+reef_f = head(reef_f,n = 10)
+kable(reef_f, digits = 2, align = "c", format = "latex", booktabs=TRUE, ,caption = "Top Ten Families", col.names = c("Class","Famliy", "Sum")) %>% kable_styling(latex_options = "hold_position")
+```
+  
+From the table of family, we can know that the top ten families are belong to  Actinopterygii in this area. Then I count the total amount of first five families in different depths, since their amount are greater than $2000$.  
+
+
+```{r}
+reef_taxon = reef %>% group_by(Depth) %>% count(Taxon)
+sum_taxon= aggregate(reef_taxon$n, by=list(Depth=reef_taxon$Depth), FUN=sum)
+reef_class_A = reef_class %>% filter(Class == 'Actinopterygii')
+reef_family_L = reef_family %>% filter(Family == 'Labridae')
+reef_family_K = reef_family %>% filter(Family == 'Kyphosidae')
+reef_family_M = reef_family %>% filter(Family == 'Monacanthidae')
+reef_family_C = reef_family %>% filter(Family == 'Cheilodactylidae')
+reef_family_O = reef_family %>% filter(Family == 'Odacidae')
+```
+
+
+## Regression Linear Model
+```{r}
+data <- read.csv("~/Desktop/MSSP/MA615/project/Midterm Project/data1.csv")
+data = data[1:89,1:9]
+row.names(data) <- data[1:89,1]
+df <- data.frame(t(data[-1]))
+colnames(df) <- data[, 1]
+summary(data)
+pairs(~Depth+Chor.P.+Actino.C.+Labr.F.+Kyphos.F.+Monacanth.F.+Cheilodactyl.F.+ Odac.F.+Taxon,data=data)
+```
+  
+From the data, we see there $9$ variables in the data set $Depth$, $Chor.P.$, $Actino.C.$,  $Labr.F.$, $Kyphos.F.$, $Monacanth.F.$,$Cheilodactyl.F.$, $Odac.F.$, $Taxon$. From the scatter matrices, we see there are not strong linear relationship betweet depth and species. Therefore, we need to do linear transformations.  
+
+
+```{r}
+a= lm(Depth~ ., data = data)
+summary(a)
+par(mfrow=c(2,2))
+plot(a)
+```
+From the residual plot, we see the points are not ramdomly dispersed around horizontal axis; and from the residuals vs Fitted plot, we see the points appear to decrease which indicate heteroskedsticity. In this case, there are some points outside the dotted line which means no point has high fluence.
+
+```{r}
+b= lm(log(Depth)~ ., data = data)
+summary(b)
+par(mfrow=c(2,2))
+plot(b)
+```
+After using log transformation, multiple R-squared increase and p-value decrease. The points in the residuals vs leverage plot below cook's distance are less than the original linear regression model. The points in the Q-Q plot form a more straight line than the original line regression model.  
+
+## Summary and Discussion
+\qquad This project evaluated the relationship between water depth and the amount and species of reef fish around the central and southern great barrier reef ecoregion. From the bar chart of Depth, we see that most reef fish live at a depth of $5$ meters. From the regression model, we see that with the depth of the water increasing, the amount and species of reef fish will increase. Based on the coefficients of variables, all variables have negative impact on the depth of water except Actino.C. and  Monacanth.F..  
+
+## References
+\qquad Coral reef fish. (2019, September 24). Retrieved from $https://en.wikipedia.org/wiki/Coral_reef_fish.$  
+
+\qquad Edgar, G. J., & Stuart-Smith, R. D. (2017, March 11). Reef Life Survey: Global reef fish dataset. Retrieved from $https://www.gbif.org/dataset/38f06820-08c5-42b2-94f6-47cc3e83a54a.$  
+
+\qquad Open Access to Marine Data. (n.d.). Retrieved from $http://reeflifesurvey.imas.utas.edu.au/static/landing.html.$
+

@@ -1,0 +1,102 @@
+---
+title: "Presentation_Reef"
+author: "Yiru Fei"
+date: "10/20/2019"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+reef <- read.csv("~/Desktop/MSSP/MA615/project/Midterm Project/Reef_Life_Survey_(RLS)#_Global_reef_fish_dataset-fish_surveys.csv")
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+library(knitr)
+```
+
+## Introduction
+
+Reef Fish and Water Depth
+\newline
+This project will define whether the species and amount of reef fish will increase with the depth of sea increase by using the dataset from the Reef Life Survey. 
+
+## Data Description
+This data set contains 20 colums, 23655 entries. The following four tables display the first six data of every columns.  
+
+##
+<div class="centered">
+</div>
+
+```{r, echo = F}
+da1 = head(reef[,1:5])
+kable(cbind(da1), caption = "First five columns of reef", align = "c", booktab =T, format = "html",longtable = F) %>% kable_styling(latex_options = c("HOLD_position"),position = "center",font_size = 15)
+```
+##
+```{r,echo = F}
+da2 = head(reef[,6:10])
+kable(cbind(da2), caption = "Second five columns of reef", align = "c", booktab =T, format = "html",longtable = F) %>% kable_styling(latex_options = c("HOLD_position"),position = "center",font_size = 15)
+```
+##
+```{r,echo = F}
+da3 = head(reef[,11:15])
+kable(cbind(da3), caption = "Third five columns of reef", align = "c", booktab =T, format = "html",longtable = F) %>% kable_styling(latex_options = c("HOLD_position"),position = "center",font_size = 15)
+```
+##
+```{r,echo = F}
+da4 = head(reef[,16:20])
+kable(cbind(da4), caption = "Last five columns of reef", align = "c", booktab =T, format = "html",longtable = F) %>% kable_styling(latex_options = c("HOLD_position"),position = "center",font_size = 15)
+```
+
+## Organize Phylum
+<div class="centered">
+The most phylum is Chordata in this area.
+```{r , echo = F}
+reef_phylum  = reef %>% group_by(Depth) %>% count(Phylum)
+reef_p = reef %>% count(Phylum)
+ggplot(data=reef_p, aes(x = "",y=n, fill = Phylum)) +
+  geom_bar(width = 1, stat = "identity")+coord_polar("y", start=0) +labs(title="Phylum")
+```  
+
+## Organize Class
+<div class="centered">
+The most class is Actinopterygii in this area.
+</div>
+```{r,echo = F}
+reef_class = reef %>% group_by(Depth) %>% count(Class)
+reef_c = reef %>% group_by(Phylum)%>% count(Class)
+kable(reef_c, digits = 2, align = "c", format = "html", booktabs=TRUE, ,caption = "Total Amount of Different Class", col.names = c("Phylum",  "Class" ,"Sum")) %>% kable_styling(latex_options = "hold_position",position = "center",font_size = 15)
+```
+
+## Organize Family
+<div class="centered">
+</div>
+  
+```{r,echo = F}
+reef_family  = reef %>% group_by(Depth) %>% count(Family)
+reef_f = reef %>% group_by(Class) %>% count(Family)
+reef_f = reef_f[with(reef_f,order(-n)),]
+reef_f = head(reef_f,n = 10)
+kable(reef_f, digits = 2, align = "c", format = "html", booktabs=TRUE, ,caption = "Top Ten Families", col.names = c("Class","Famliy", "Sum")) %>% kable_styling(latex_options = "hold_position",position = "center",font_size = 15)
+```  
+
+## Regression Linear Model
+```{r,echo = F}
+data <- read.csv("~/Desktop/MSSP/MA615/project/Midterm Project/data1.csv")
+data = data[1:89,1:9]
+
+a= lm(Depth~ ., data = data)
+par(mfrow=c(2,2))
+plot(a)
+```
+
+## Transformation
+```{r,echo = F}
+b= lm(log(Depth)~ ., data = data)
+par(mfrow=c(2,2))
+plot(b)
+```
+
+##
+```{r}
+b
+```
