@@ -1,5 +1,5 @@
 ---
-title: "Presentation_Reef"
+title: "Depth and Reef Fish"
 author: "Yiru Fei"
 date: "10/20/2019"
 output: ioslides_presentation
@@ -18,10 +18,14 @@ library(knitr)
 
 Reef Fish and Water Depth
 \newline
-This project will define whether the species and amount of reef fish will increase with the depth of sea increase by using the dataset from the Reef Life Survey. 
+This project will define whether the species and amount of reef fish will increase with the depth of sea increase by using the dataset from the Reef Life Survey.  
+
+This project will find the relationship between the species and the amount of reef fish and the depth of the sea. I hypothesis that the species and amount of reef fish will increase as the depth of water increases.
 
 ## Data Description
-This data set contains 20 colums, 23655 entries. The following four tables display the first six data of every columns.  
+This project used the dataset collected around Australia where belongs to the central Indo-Pacific, and the spatial location is from Lat/Lon $-36.585, 132.429$ to Lat/Lon $-31.18, 139.812$. This dataset contains records of fishes and elasmobranchs collected by a combination of experienced scientists and skilled recreational divers along $50$ m transects on shallow rocky and coral reefs.  
+
+This data set contains 20 colums, 23655 entries. The following four tables display the first six data of every columns. 
 
 ##
 <div class="centered">
@@ -96,7 +100,12 @@ par(mfrow=c(2,2))
 plot(b)
 ```
 
-##
-```{r}
-b
-```
+## Linear Regression Model
+
+$log(Depth) = 1.82 - 0.08Chor + 0.13Actino - 0.009Labr -$
+$0.04Kyphos + 0.006Mona - 0.03Cheil - 0.02Odac -$
+$0.03Taxon$
+
+## Conclusion
+
+In conclusion, the reef fish prefer to live in shallow sea areas, and there is no strong relationship between reef fish and depth since the multiple R-squared is just $0.3$, which means that the points do not fit the regression line well.

@@ -6,12 +6,12 @@ output: pdf_document
 ---
 
 ## Introduction
-\qquad Coral reef fish are fish which live amongst or in close relation to coral reefs. Coral reefs occupy less than one percent of the surface area of the world oceans, but still they provide a home for 25 percent of all marine fish species. There are two major regions of coral reef development recognized; the Indo-Pacific and the tropical western. Each of these two regions contains its own unique coral reef fish fauna with no natural overlap in species.  
+\qquad Coral reef fish are fish that live amongst or in close relation to coral reefs. Coral reefs occupy less than one percent of the surface area of the world oceans, but still, they provide a home for 25 percent of all marine fish species. There are two significant regions of coral reef development recognized; the Indo-Pacific and the tropical western. Each of these two regions contains its own unique coral reef fish fauna with no natural overlap in species.  
 
-\qquad This project will define whether the species and amount of reef fish will increase with the depth of sea increase by using the dataset from the Reef Life Survey.  
+\qquad This project will find the relationship between the species and the amount of reef fish and the depth of the sea. I hypothesis that the species and amount of reef fish will increase as the depth of water increases.
 
 ## Data Description
-\qquad This project used the dataset collected around Australia where belongs to the central Indo-Pacific, and the spatial location is from Lat/Lon $-36.585, 132.429$ to Lat/Lon $-31.18, 139.812$. This dataset contains records of body fishes and elasmobranchs collected by a combination of experienced scientists and skilled recreational divers along 50 m transects on shallow rocky and coral reefs.  
+\qquad This project used the dataset collected around Australia where belongs to the central Indo-Pacific, and the spatial location is from Lat/Lon $-36.585, 132.429$ to Lat/Lon $-31.18, 139.812$. This dataset contains records of fishes and elasmobranchs collected by a combination of experienced scientists and skilled recreational divers along $50$ m transects on shallow rocky and coral reefs.  
 
 \qquad Fishes within $5$ m of the line are recorded separately for each side of the transect line, with each side referred to as a ‘block’. Thus, two blocks form a complete transect.  Multiple transects are usually surveyed at each site, usually along different depth contours. Sites are distinguished by unique site codes with latitude and longitude recorded in decimal degrees using a handheld GPS unit, or taken from Google Earth.  
 
@@ -86,7 +86,11 @@ reef_family_K = reef_family %>% filter(Family == 'Kyphosidae')
 reef_family_M = reef_family %>% filter(Family == 'Monacanthidae')
 reef_family_C = reef_family %>% filter(Family == 'Cheilodactylidae')
 reef_family_O = reef_family %>% filter(Family == 'Odacidae')
+count_taxon = reef %>% count(Taxon)
+ggplot(data=count_taxon, aes(x = Taxon,y=n)) +
+  geom_bar( stat = "identity")
 ```
+From the bar chart of taxon, we see that there are various reef fish in this area. Then, I count the total amount of reef fish in different sea depths.  
 
 
 ## Regression Linear Model
@@ -101,7 +105,7 @@ pairs(~Depth+Chor.P.+Actino.C.+Labr.F.+Kyphos.F.+Monacanth.F.+Cheilodactyl.F.+ O
 ```
   
 From the data, we see there $9$ variables in the data set $Depth$, $Chor.P.$, $Actino.C.$,  $Labr.F.$, $Kyphos.F.$, $Monacanth.F.$,$Cheilodactyl.F.$, $Odac.F.$, $Taxon$. From the scatter matrices, we see there are not strong linear relationship betweet depth and species. Therefore, we need to do linear transformations.  
-
+\bigskip
 
 ```{r}
 a= lm(Depth~ ., data = data)
@@ -110,7 +114,7 @@ par(mfrow=c(2,2))
 plot(a)
 ```
 From the residual plot, we see the points are not ramdomly dispersed around horizontal axis; and from the residuals vs Fitted plot, we see the points appear to decrease which indicate heteroskedsticity. In this case, there are some points outside the dotted line which means no point has high fluence.
-
+\bigskip
 ```{r}
 b= lm(log(Depth)~ ., data = data)
 summary(b)
@@ -118,9 +122,12 @@ par(mfrow=c(2,2))
 plot(b)
 ```
 After using log transformation, multiple R-squared increase and p-value decrease. The points in the residuals vs leverage plot below cook's distance are less than the original linear regression model. The points in the Q-Q plot form a more straight line than the original line regression model.  
+The final linear regression model is $$log(Depth) = 1.82 - 0.08Chor + 0.13Actino - 0.009Labr -0.04Kyphos + 0.006Mona - 0.03Cheil - 0.02Odac - 0.03Taxon$$
 
 ## Summary and Discussion
-\qquad This project evaluated the relationship between water depth and the amount and species of reef fish around the central and southern great barrier reef ecoregion. From the bar chart of Depth, we see that most reef fish live at a depth of $5$ meters. From the regression model, we see that with the depth of the water increasing, the amount and species of reef fish will increase. Based on the coefficients of variables, all variables have negative impact on the depth of water except Actino.C. and  Monacanth.F..  
+\qquad This project evaluated the relationship between water depth and the amount and species of reef fish around the central and southern great barrier reef ecoregion. From the bar chart of Depth, we see that most reef fish live at a depth of $5$ meters. From the regression model, we see that with the depth of the water increases, the amount and species of reef fish will increase. Based on the coefficients of variables, all variables have a negative impact on the depth of water except Actino.C. and  Monacanth.F..  
+
+\qquad In conclusion, the reef fish prefer to live in shallow sea areas, and there is no strong relationship between reef fish and depth since the multiple R-squared is just $0.3$, which means that the points do not fit the regression line well.  
 
 ## References
 \qquad Coral reef fish. (2019, September 24). Retrieved from $https://en.wikipedia.org/wiki/Coral_reef_fish.$  
