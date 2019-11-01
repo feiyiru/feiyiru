@@ -9,6 +9,8 @@ contrib_all = read_excel("Top MA Donors 2016-2020.xlsx",
 Field = read_excel("Top MA Donors 2016-2020.xlsx",
                    sheet = "Field Descriptions")
 
+
+## code from Kerui Cao
 contrib_all['contrib'] = gsub(contrib_all$contrib,pattern = ", ",replacement = ",")
 
 contrib_all['contrib'] = gsub(contrib_all$contrib,pattern = "\\s\\w*",replacement = "")
