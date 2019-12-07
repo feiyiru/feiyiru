@@ -1,0 +1,353 @@
+---
+title: "17K Mobile Games"
+subtitle: "Midterm Project"
+author: "Yiru Fei"
+date: "11/5/2019"
+output:
+  pdf_document 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(tidytext)
+library(tidyr)
+library(ggpubr)
+library(lme4)
+library(arm)
+library(esquisse)
+library(MASS)
+```
+
+
+# 1. Abstract  
+
+Before downloading a mobile game, the players' first concern is usually the rating of games. In another word, a game with a lower rating is less likely to be download than a game with a higher rating. This project will mainly focus on which factor of the first impression may affect whether a player download the mobile games. The first impression only includes information that players can get from the app store. Based on the data from the Apple App Store, this project will analyze with EDA method and modeling method.
+
+# 2. Introduction  
+
+Towards the end of the 20th century, mobile phone ownership became ubiquitous in the industrialized world. As a result of this explosion, technological advancement by handset manufacturers became rapid, and mobile phone games also became increasingly sophisticated, taking advantage of exponential improvements in display, processing, storage, interfaces, network bandwidth, and operating system functionality. The mobile games industry is worth billions of dollars, with companies spending vast amounts of money on the development and marketing of these games to an equally large market.  
+
+There is no doubt that a good game must include great controls, interesting themes, excellent music, the balance of challenge, and entertaining story. But when players can only obtain game information from the APP store, how do they determine whether to download the game? Therefore, exploring the relationship between game rating and first impression of games is significant.  
+
+# 3. Method
+## Data source  
+
+This data is obtained from https://www.kaggle.com/tristan581/17k-apple-app-store-strategy-games. It is the data of 17007 strategy games on the Apple App Store, and collected on the 3rd of August 2019, using the iTunes API and the App Store sitemap.  
+
+-Name: the name of game  
+
+-Average User Rating: Rounded to nearest 0.5, requires at least 5 ratings  
+
+-User Rating Count: Number of ratings internationally, null means it is below 5  
+
+-Price: Price in USD  
+
+-Description: App description  
+
+-Developer: App developer  
+
+-Languages: ISO2A language codes  
+
+-Size: Size of the app in bytes.
+
+-Age Rating: Either 4+, 9+, 12+ or 17+  
+
+-Original Release Date: When it was released  
+
+-Current Version Release Date: When it was last updated  
+
+After eliminating the game with 0 rating, and duplicate games, the data set has 7220 observations and 18 variables.
+
+```{r,echo = F}
+app = read.csv(file= "appstore_games.csv")
+app = na.omit(app)
+app = unique(app)
+app = app %>% filter(Primary.Genre == "Games")
+```
+
+## EDA  
+### Fig.1 Average Rating vs. Price  
+
+```{r,warning=FALSE, echo = F}
+for(i in 1:length(app$Price)){
+if(app$Price[i] == 0){
+  app$price[i] = "free"}
+else {
+  app$price[i] = "price"}
+}
+
+ggplot(app) +
+ aes(x = price, y = Average.User.Rating, fill = price) +
+ geom_boxplot() +
+ scale_fill_brewer(palette = "YlOrRd") +
+ theme_minimal()+  labs(title = "Average Rating vs. Price")
+```  
+
+\textbf{By divided all games into paid games and free games, then build a boxplot between these two groups and the average rating. From the boxplot, the quartile range of two boxplots are the same, and both plots have outliers. However, the medians level in two plots is different. Free games have a higher average rating than paid games.} 
+
+### Fig.2 Total User Rating vs. Average Rating  
+
+```{r, echo = F}
+app %>% dplyr::select(User.Rating.Count, Average.User.Rating)%>%
+mutate(Average.User.Rating=factor((Average.User.Rating))) %>%
+ggplot(aes(y = User.Rating.Count/1000, x=Average.User.Rating))+
+geom_bar(stat = "identity",aes(fill=Average.User.Rating),alpha = 0.8)+ 
+  theme_classic() + 
+  theme(legend.position="none") + 
+  xlab("Ratings") + 
+  ylab("Avgerage Total Rating(Thousand)") + 
+  ggtitle("Total User Ratings vs. Average Rating")
+```  
+
+\textbf{Since this data was collected from 2003 to 2019, there are more than tens of millions of reviews for whole games. I divided the total rating by $1000$ to making the number on the y-axis smaller. From figure 2, the most players will rate 4.5 for a game, which total rating is over $1.5*10^7$, and the total number of rating on 3.5 and 4 are closed.}
+
+### Fig.3 Pie Chart of age rating  
+
+```{r,warning=FALSE, echo = F}
+age = app %>%
+    group_by(Age.Rating) %>%
+    summarize(Total = n()) %>%
+    mutate(perc = Total/sum(Total)*100)
+
+ ggplot(age, aes(x ="",y=perc, fill=Age.Rating))+
+  geom_bar(stat="identity", width=1) +
+  coord_polar("y", start=0)+
+geom_text(aes(label = paste0(round(perc), "%")), 
+              position = position_stack(vjust = 0.5)) +
+   ggtitle("Proportion of age rating")+
+  theme_void()
+```  
+
+\textbf{Before checking whether players' age may affect the game rating, first of all, I need to know the proportion of different age ratings in this data. From figure 3, the most minimal age for downloading games are four years old or older.}
+
+### Fig.4 Average Rating Based by Age Rating Group  
+
+```{r,warning=FALSE, echo = F}
+app %>%
+    ggplot(aes(x = fct_rev(as.factor(Average.User.Rating)))) +
+    geom_bar(col = "black", fill = "orange" )+
+    labs(title = "Average Rating Based by Age Rating Group") +
+    theme(strip.text = element_text(face = "bold", size = 12),
+          plot.title = element_text(face = "bold", size = 18, hjust = 0.5, vjust = 2),
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank()) +
+    facet_wrap(~ fct_infreq(as.factor(Age.Rating)))
+```  
+
+\textbf{After grouping games by age rating, and making barplot between the total number of rating and average rating again, I can see the game rating in different age groups have a similar shape, all groups have the highest number on 4.5. Figure 4 indicates that the age rating will not affect game rating a lot.}  
+
+### Fig.5 Size vs Ratings of APP  
+
+```{r,message=FALSE, echo = F}
+app = app %>%
+mutate(Size.MB=Size/(1024*1024))
+
+ggplot(app,aes(x=Size.MB,y=Average.User.Rating))+
+geom_smooth(method="auto")+
+theme_classic() +xlab("Size(MB)")+
+  ggtitle("Size vs Ratings of Game")
+```  
+
+\textbf{In the raw data, the unit of app size is in byte. I divide the total size by $1024*1024$ for transforming the unit into MB and then make figure 5. This plot indicates that pretty small size games are hard getting a high rate, and when the game size is larger than 300 MB approximately, their ratings will not have a strong relationship with their size.}  
+
+### Fig.6 Languages available in apps vs. Rating of Game  
+
+```{r,message=FALSE, echo = F}
+app = app %>% 
+  mutate(lang=sapply(Languages, function(x) length(unlist(strsplit(as.character(x), "\\W+")))))
+
+ggplot(app,aes(x=lang,y=Average.User.Rating))+
+geom_smooth(method="auto")+
+theme_classic() +
+  xlab("Total Languages available")+
+  ggtitle("Languages vs Ratings of Game")
+```  
+
+\textbf{Figure 6 indicates that games include more languages have a wider range of rating than games have fewer languages. Maybe, due to if a game contains more languages, then they will have more players and more ratings. Therefore, those games have different grades.}  
+
+### Fig.7 Total Words on Description vs. Rating of Game
+
+```{r, message=FALSE, echo=F}
+app = app %>% 
+  mutate(word=sapply(Description, function(x) length(unlist(strsplit(as.character(x), "\\W+")))))
+
+ggplot(app,aes(x=word,y=Average.User.Rating))+
+geom_smooth(method="auto")+
+theme_classic() +
+  xlab("Total words")+
+  ggtitle("Description vs Ratings of Game")
+```  
+
+\textbf{Figure 7 indicates that games have more specific descriptions more substantial possible on getting a lower rating than games have fewer descriptions. In other words, even if a game has only one sentence in summary, it may not get a low rating.}  
+
+### Fig.8 Average Rating vs. Original Release Date  
+
+```{r,echo = F,warning=FALSE}
+app %>% mutate_if(is.factor, as.character) -> app
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+
+app = app %>% mutate(Original = substrRight(Original.Release.Date, 4))
+
+ggplot(app) +
+ aes(x = Original, y = Average.User.Rating, fill = Original) +
+ geom_boxplot(fill = "#f1605d") +
+ labs(title = "Original Release Date vs. Average Rating") +
+ theme_minimal()
+```  
+
+\textbf{Figure 8 shows that new released games have higher average ratings than old ones.}
+
+### Fog.9 Average Rating vs. Current Release Date  
+
+```{r,echo = F,warning=FALSE}
+app = app %>% mutate(Current = substrRight(Current.Version.Release.Date, 4))
+
+version_c = app %>%
+    group_by(Current) %>%
+    summarize(Total = n()) %>%
+    mutate(perc = Total/sum(Total)*100)
+
+ggplot(app) +
+ aes(x = Current, y = Average.User.Rating, fill = Current) +
+ geom_boxplot(fill = "#f1605d") +
+ labs(title = "Current Release Date vs. Average Rating") +
+ theme_minimal()
+```  
+
+\textbf{Figure 9 shows a similar result as figure 8, games that have been updated will have higher ratings than games that have stopped updating.}
+
+## Modeling
+### Poisson Model  
+
+$$log(\frac{E(Rating)}{t})  = \alpha + \beta_1*Count + \beta_2*Price + \beta_3 * Age + \beta_4*Current + \beta_5*Original + \beta_6* Word + \beta_7 * Lang + \beta_8 * Size $$
+
+```{r warning=FALSE, echo=FALSE}
+fit1 <- glm(Average.User.Rating ~ User.Rating.Count + Price + Age.Rating + Current + Original + word + lang + Size.MB, data = app, family = poisson)
+summary(fit1)
+plot(fit1,which = 2)
+```  
+
+\textbf{The output of the poisson model shows that $Original$ is statistically significant in this model. However, the QQ plot shows that most points do not fall on the line; all points form a curve and existing extreme value on both sides of the line. And the AIC is infinite. Therefore, this model is not fitted well.}  
+
+### Binomial Model  
+
+$$logit(p)  = \alpha + \beta_1*Count + \beta_2*Price + \beta_3 * Age + \beta_4*Current + \beta_5*Original + \beta_6* Word $$
+```{r,warning=FALSE, echo=FALSE}  
+for (i in 1:nrow(app)){ 
+  if(app$Average.User.Rating[i] <= 3.5) app$Rating[i]=0
+  else
+    app$Rating[i]=1
+}  
+
+bin <- glm(formula = as.factor(Rating) ~ User.Rating.Count + Age.Rating + Current + Original + word, family = binomial, data = app)
+summary(bin)
+```  
+
+\textbf{The binomial model uses the binary variable of rating; 1 means game rating is 4 or higher, and 0 means game rating is 3.5 or lower. Based on AIC, this model is selected by stepwise regression automatically. This model does not contain the $language$ and $word$, which is the total number of descriptions of the game. This result is consistent with EDA.}  
+
+### Multilevel Linear Model with Random Intercept  
+
+$$Rating  = \alpha_{(current + original)} + \beta_1*Count + \beta_2*Price + \beta_3 * Age+ \beta_4* Word + \beta_5 * Lang + \beta_6 * Size$$  
+
+```{r,echo = F}
+mul1 <- lmer(Average.User.Rating ~ (1|Current)+(1|Original)+scale(User.Rating.Count) + Price + Age.Rating  +  word + lang+ Size.MB, data = app)
+summary(mul1)
+binnedplot(x= fitted(mul1), y= resid(mul1))
+```  
+
+\textbf{This model has added two random factors, $Original$ and $Current$. From the estimates for the fixed effect, for one increase in the number of reviews, there is a 0.021 increase on game rating; for every one dollar increase in the price, there is a 0.002 increase on game rating, and games with age-rating 4+ have a greater chance of getting high scores. Binned residual plot shows some points fall outside the confidence bands, and the most points are placed at the right side.}
+
+### Multilevel Linear Model with Random Slope and Intercept  
+
+$$Rating  = \alpha_{(original)} + \beta_1*Count_{(current)} + \beta_2*Price + \beta_3 * Age+ \beta_4* Word + \beta_5 * Lang + \beta_6 * Size+ \mu_{current}*Count$$  
+
+```{r,echo = F}
+mul2 <- lmer(Average.User.Rating ~ (0+User.Rating.Count|Current)+(1|Original)+scale(User.Rating.Count) + Price + Age.Rating  +  word + lang+ Size.MB, data = app)
+summary(mul2)
+binnedplot(x= fitted(mul2), y= resid(mul2))
+```  
+
+\textbf{This model has added one random factor, $Original$, on intercept and one random slope for $Count$, which means that this model are allowing the slope of regression equation to vary by last release date of games. Since it is intuitive to assume that total number of reviews varies from year to year. From the estimates for the fixed effect, for one increase in the number of reviews, there is a 0.234 increase on game rating; for every one dollar increase in the price, there is a 0.008 increase on game rating, and games with age-rating 4+ have a greater chance of getting high scores. Binned residual plot shows only  three points fall outside the confidence bands, but more points are placed at the right side.}  
+
+$$Rating  = \alpha_{(original)} + \beta_1*Count + \beta_2*Price + \beta_3 * Age+ \beta_4* Word + \beta_5 * Lang + \beta_6 * Size + \mu_{original}*Count + \mu_{current}*Count$$  
+
+```{r,echo = F}
+mul3 <- lmer(Average.User.Rating ~ (1+User.Rating.Count|Current)+(1|Original)+scale(User.Rating.Count) + Price + factor(Age.Rating) +  word + lang+ Size.MB, data = app)
+summary(mul3)
+binnedplot(x= fitted(mul3), y= resid(mul3))
+```  
+
+\textbf{This model has added two random factors, $Original$ and $Current$, on intercept and kept $Current$ one random slope for $Count$. From the estimates for the fixed effect, for one increase in the number of reviews, there is a 0.246 increase on game rating; for every one dollar increase in the price, there is a 0.004 increase on game rating, and games with age-rating 4+ have a greater chance of getting high scores. Binned residual plot shows some points fall outside the confidence bands.} 
+
+# 4. Result
+## Model Choice  
+
+```{r,echo = F}
+anova(mul1,mul2,mul3)
+```  
+
+\textbf{According to the output of the ANOVA test for three multilevel models, I find that multilevel model 3 with random intercept and slope of $Count$ is the best one among the three multilevel models. Since the multilevel model 3 has the lowest AIC and its P-value is significant.}
+
+# 5. Discussion
+## Implication
+In general, a high-score game will be downloaded by many people, so there will be many reviews. From the result of the multilevel model, the coefficient of $Count$ shows that with one increase in the number of reviews, there is a 0.246 increase on game rating. Therefore, producers need to recommend players to write reviews.  
+
+The coefficient of $Price$ indicates that expensive games are more likely to get a higher rating than the cheap ones. Therefore, I suggest that game producers can spend more time on making better games, which is consistent with common sense.  
+
+The size of the game and the number of languages available in the game will not impact the game rating a lot, and the game with a lower age limit may have a higher rating.  
+
+## Limitation
+The limitation of this model is that the dataset, which I used, only includes mobile strategy games and all of the data collected from the Apple store. Therefore, this model is not enough to predict the game rating for other types of games and games that download from different stores. Furthermore, this dataset does not include the total download of each game. Due to not everyone who download game will write a review, and the total number of rating is less than the total download, so this model is not very accurate.  
+
+## Future Direction
+For future works, I will try to include more data, which collected from other app stores and other types of games. And to find a more fitted model for this predicting problem.
+
+# 6. Appendix
+### Fig.10 Most popular game developer  
+
+```{r,echo = FALSE}
+developer = app %>%
+    group_by(Developer) %>%
+    summarize(Total = n()) 
+
+developer %>% 
+    arrange(desc(Total)) %>%
+    slice(1:6) %>%
+    ggplot(., aes(x=Developer, y=Total))+
+              geom_bar(stat='identity', fill = "#FF6666")+
+  labs(title = "Most popular Game Developer")
+```  
+
+### Fig.11 Total number of each available languages in games  
+
+```{r,warning=FALSE, echo = F}
+l = app %>% dplyr::select(Languages,Average.User.Rating)
+l$Languages[l$Languages == ""] <- "N"
+l = na.omit(l)
+l = l %>% mutate_all(as.character)
+
+l %>% unnest_tokens(input=Languages,output=lang) %>%
+count(lang,sort=T) %>%
+top_n(n=20,n) %>%
+ggplot(aes(x=reorder(lang,n),y=n))+
+geom_col(aes(fill=rainbow(20)),col="black",show.legend=F) + 
+  coord_flip() + 
+  geom_text(aes(label=n),hjust=0.8) +
+xlab("Language Abb") + 
+  ylab("Count") + 
+  ggtitle("Languages available in apps")
+```
+
+# 7. Reference
+https://www.kaggle.com/tristan581/17k-apple-app-store-strategy-games  
+
+https://en.wikipedia.org/wiki/Mobile_game  
+
+https://www.gamedesigning.org/gaming/great-games/
