@@ -1,0 +1,210 @@
+---
+title: "Crime Analysis for Boston and San Francisco"
+author: "Yiru Fei"
+date: "12/16/2019"
+output: powerpoint_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(dplyr)
+library(tidyverse)
+library(knitr)
+library(tidytext)
+library(esquisse)
+library(wordcloud)
+library(ggmap)
+library(mapdata)
+library(gridExtra)
+library(devtools)
+```
+
+```{r, echo = F}
+boston = read.csv(file= "crime_report.csv")
+sanf = read.csv(file= "Police_Present.csv")
+boston = boston %>% filter(YEAR == 2019 | YEAR == 2018)
+```
+
+```{r, echo = F}
+sanf = sanf[1:(length(sanf)-9)]
+boston = na.omit(boston)
+sanf = na.omit(sanf)
+```
+
+### Introduction
+
+**Differences and similarities of crime categories between these two cities**
+
+- Boston: 694,583 residents
+- San Fansico: 883,305 residents
+
+### Data Description
+
+
+   Datetime      Category             Street         Latitude    Longitude
+-------------   -----------------    -----------     ----------  -----------
+2019-10-13      Auto Theft            LINCOLN ST     42.25952    -71.12156	
+2019-06-05      Harassment            ZELLER ST      42.29187    -71.13635
+2018-11-18      Property Found        ZELLER ST      42.29187    -71.13635
+2019/10/04      Robbery               BALBOA ST      37.77508    -122.5113	
+2019/01/09    	Stolen Property       EDDY ST        37.78289    -122.4208   
+2018/01/01      Motor Vehicle Theft   COLUMBUS AVE   37.79786    -122.4067                     
+
+Table: Crime data of Boston and San Fansico.
+
+### Bar Plot
+```{r, echo = F,message=FALSE}
+boston <- boston %>%
+ filter(!(DISTRICT %in% "")) %>%
+ filter(!(UCR_PART %in% ""))
+
+w1 = ggplot(boston) +
+ aes(x = DAY_OF_WEEK, fill = UCR_PART) +
+ geom_bar() +
+ scale_fill_brewer(palette = "GnBu") +
+ theme_gray() +
+ facet_wrap(vars(YEAR))+ labs(title  = "Bosotn", x = "Day of Week")+theme(axis.text.x = element_text(angle = 45,hjust = 1))
+```  
+
+```{r, echo = F,message=FALSE}
+w2 = ggplot(sanf) +
+ aes(x = Incident.Day.of.Week, fill = Report.Type.Code) +
+ geom_bar() +
+ scale_fill_brewer(palette = "YlOrRd") +
+ theme_minimal() +
+ facet_wrap(vars(Incident.Year))+theme_gray() +labs(title  = "San Francisco", x = "Day of Week")+theme(axis.text.x = element_text(angle = 45,hjust = 1))
+grid.arrange(w1, w2,nrow = 2)
+```
+
+### Maps of Different Crime Types 
+
+```{r echo=F, message=FALSE}
+bos_map <- qmap(location = "Boston", zoom = 12)
+san_map <- qmap(location = "San Franciscon", zoom = 13)
+```  
+
+```{r, echo = F, warning=FALSE}
+b1 = boston %>% filter(UCR_PART == "Part One")
+b2 = boston %>% filter(UCR_PART == "Part Two")
+b3 = boston %>% filter(UCR_PART == "Part Three")
+b4 = boston %>% filter(UCR_PART == "Other")
+
+plot1 = bos_map + geom_point(data = b1, size = 0.1,aes(x = Long, y = Lat, colour = UCR_PART)) + scale_colour_manual(values = c("red")) + labs(x = "Longitude", y = "Latitude")  
+plot2 = bos_map + geom_point(data = b2, size = 0.1 ,aes(x = Long, y = Lat, colour = UCR_PART)) + scale_colour_manual(values = c("orange")) + labs(x = "Longitude", y = "Latitude")  
+plot3 = bos_map + geom_point(data = b3, size = 0.1, aes(x = Long, y = Lat, colour = UCR_PART)) + scale_colour_manual(values = c("yellow")) + labs(x = "Longitude", y = "Latitude")  
+plot4 = bos_map + geom_point(data = b4, size = 0.1, aes(x = Long, y = Lat, colour = UCR_PART)) + scale_colour_manual(values = c("green")) + labs(x = "Longitude", y = "Latitude")  
+grid.arrange(plot1, plot2, plot3,plot4,nrow = 2,top="Map of Boston")
+``` 
+
+### Maps of Different Crime Types 
+
+```{r, echo = F,warning=FALSE}
+s1 = sanf %>% filter(Report.Type.Code == "II")
+s2 = sanf %>% filter(Report.Type.Code == "VI")
+s3 = sanf %>% filter(Report.Type.Code == "IS")
+s4 = sanf %>% filter(Report.Type.Code == "VS")
+
+figure1 = san_map + geom_point(data = s1, size = 0.1, aes(x = Longitude, y = Latitude, colour = Report.Type.Code)) + scale_colour_manual(values = c("red")) + labs(x = "Longitude", y = "Latitude")  
+figure2 = san_map + geom_point(data = s2, size = 0.1, aes(x = Longitude, y = Latitude, colour = Report.Type.Code)) + scale_colour_manual(values = c("orange")) + labs(x = "Longitude", y = "Latitude")  
+figure3 = san_map + geom_point(data = s3, size = 0.1, aes(x = Longitude, y = Latitude, colour = Report.Type.Code)) + scale_colour_manual(values = c("yellow")) + labs(x = "Longitude", y = "Latitude")  
+figure4 = san_map + geom_point(data = s4, size = 0.1, aes(x = Longitude, y = Latitude, colour = Report.Type.Code)) + scale_colour_manual(values = c("green")) + labs(x = "Longitude", y = "Latitude")  
+grid.arrange(figure1, figure2, figure3,figure4,nrow = 2,top="Map of San Francisco")
+```
+
+### Word Cloud
+
+```{r, echo = F,warning=FALSE, message=FALSE,fig.cap="The left side plot is crimes in Boston, the right side is crimes in San Francisco."}
+par(mfrow=c(1,2))
+bos_offense = boston %>%
+    group_by(OFFENSE_CODE_GROUP) %>%
+    summarize(Total = n()) %>%
+ top_n(8)
+
+bos_offense$CODE<- gsub("([A-Za-z]+).*", "\\1", bos_offense$OFFENSE_CODE_GROUP)
+
+
+wordcloud(words = bos_offense$CODE, freq = bos_offense$Total, min.freq = 1,
+          max.words=100, rot.per=0.15, random.order=FALSE,
+          colors=brewer.pal(10, "Dark2"))
+san_offense = sanf %>%
+    group_by(Incident.Category) %>%
+    summarize(Total = n()) %>%
+ top_n(8)
+
+san_offense$Category<- gsub("([A-Za-z]+).*", "\\1", san_offense$Incident.Category)
+
+
+wordcloud(words = san_offense$Category, freq = san_offense$Total, min.freq = 1,
+          max.words=100, rot.per=0.15, random.order=FALSE,
+          colors=brewer.pal(10, "Dark2"))
+```  
+
+
+### Line Plot
+
+```{r}
+boston_five = boston %>% filter(OFFENSE_CODE_GROUP == "Motor Vehicle Accident Response" | OFFENSE_CODE_GROUP == "Medical Assistance"|OFFENSE_CODE_GROUP == "Larceny"|OFFENSE_CODE_GROUP == "Investigate Person"|OFFENSE_CODE_GROUP == "Other"|OFFENSE_CODE_GROUP == "Simple Assault")
+
+boston_five = boston_five%>%dplyr::select(YEAR,MONTH,OFFENSE_CODE_GROUP)
+boston_five =boston_five%>%group_by(YEAR,MONTH)%>%count(OFFENSE_CODE_GROUP)
+
+ggplot(boston_five, aes(x = MONTH, y =n,group = OFFENSE_CODE_GROUP,color = OFFENSE_CODE_GROUP))+
+  facet_wrap(vars(YEAR))+geom_line(aes(linetype =OFFENSE_CODE_GROUP))+
+  labs(x = "Month", y = "Amount of Crime", title = "Changes of different crime among month in Boston")+
+  geom_point()+theme(axis.text.x = element_text(angle = 45,hjust = 1))
+```  
+
+### Line Plot
+
+```{r}
+sanf = separate(sanf,Incident.Date,into = c("year","month","day"),sep = "/")
+sanf_five = sanf %>% filter(Incident.Category == "Larceny Theft" | Incident.Category == "Other Miscellaneous"|Incident.Category == "Non-Criminal"|Incident.Category == "Assault"|Incident.Category == "Malicious Mischief"|Incident.Category == "Burglary")
+
+sanf_five = sanf_five%>%dplyr::select(Incident.Year,month,Incident.Category)
+sanf_five = sanf_five%>%group_by(Incident.Year,month)%>%count(Incident.Category)
+
+ggplot(sanf_five, aes(x = month, y =n,group = Incident.Category,color = Incident.Category))+
+  facet_wrap(vars(Incident.Year))+geom_line(aes(linetype =Incident.Category))+
+  labs(x = "Month", y = "Amount of Crime", title = "Changes of different crime among month in San Francisco")+
+  geom_point()+theme(axis.text.x = element_text(angle = 45,hjust = 1))
+```  
+
+### Map of Most Common Crime in Boston
+```{r, echo = F,warning=FALSE, fig.cap="Motor vehicle accident response always happened around Boston Common and South End"}
+mapping_bos <- boston %>%
+  select(OFFENSE_CODE_GROUP, Long, Lat) %>%
+  filter(OFFENSE_CODE_GROUP == 'Motor Vehicle Accident Response')
+
+bos_map + geom_density_2d(aes(x = Long, y = Lat), data = mapping_bos) +
+  stat_density2d(data = mapping_bos, 
+    aes(x = Long, y = Lat, fill = ..level.., alpha = ..level..), size = 0.01, 
+    bins = 16, geom = "polygon") + scale_fill_gradient(low = "green", high = "red", 
+    guide = FALSE) + scale_alpha(range = c(0, 0.3), guide = FALSE)
+```  
+
+### Map of Most Common Crime in San Francisco
+```{r, echo = F,warning=FALSE,fig.cap="Larceny theft always happened around downtown"}
+mapping_san <- sanf %>%
+  select(Incident.Category, Longitude, Latitude) %>%
+  filter(Incident.Category == 'Larceny Theft')
+
+san_map + geom_density_2d(aes(x = Longitude, y = Latitude), data = mapping_san) +
+  stat_density2d(data = mapping_san, 
+    aes(x = Longitude, y = Latitude, fill = ..level.., alpha = ..level..), size = 0.01, 
+    bins = 16, geom = "polygon") + scale_fill_gradient(low = "green", high = "red", 
+    guide = FALSE) + scale_alpha(range = c(0, 0.3), guide = FALSE)
+```  
+
+### Conclusion
+- Similarities: 1. Lower crime rates on Sunday and February
+                2. Crime rates will be higher in densely populated areas
+- Differences: 1. The crimes area in Boston is broader than in San Francisco
+               2. San Francisco has the most crime records is initial category
+               
+
+### References
+
+https://en.wikipedia.org/wiki/San_Francisco  
+https://en.wikipedia.org/wiki/Boston  
+https://data.boston.gov/dataset/crime-incident-reports-august-2015-to-date-source-new-system  
+https://data.sfgov.org/Public-Safety/Police-Department-Incident-Reports-2018-to-Present/wg3w-h783 
