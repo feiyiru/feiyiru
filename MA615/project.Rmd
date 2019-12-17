@@ -1,0 +1,238 @@
+---
+title: "Crime Analysis"
+subtitle: "Final Project"
+author: "Yiru Fei"
+date: "12/1/2019"
+output:
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyverse)
+library(knitr)
+library(tidytext)
+library(esquisse)
+library(wordcloud)
+library(ggmap)
+library(mapdata)
+library(gridExtra)
+library(devtools)
+```  
+
+# Introduction  
+Stories about crime have always been popular in the news media as well as film makers, and in the modern time, thousands of crimes are committed every day. A city where has a higher population may have more crimes occur. San Fansico is the fourth-most populous in California, with 883,305 residents as of 2018. And in 2011, 50 murders were reported, which is 6.1 per 100,000 people. There were about 4,210 motor vehicle thefts, 3,142 robberies, and 2,139 assaults. Boston, with an estimated population of 694,583 in 2018, is the most populous city in New England.  
+
+For this project, I will compare the crime reports between Boston and San Fansico, and try to find the differences and similarities of crime categories between these two cities by using EDA, text analysis, and mapping.  
+
+```{r, echo = F}
+boston = read.csv(file= "crime_report.csv")
+sanf = read.csv(file= "Police_Present.csv")
+boston = boston %>% filter(YEAR == 2019 | YEAR == 2018)
+```
+
+```{r, echo = F}
+sanf = sanf[1:(length(sanf)-9)]
+boston = na.omit(boston)
+sanf = na.omit(sanf)
+```  
+
+# Data Description  
+
+The dataset for Boston is the crime incident reports, which are provided by Boston Police Department. This is a dataset containing records from the new crime incident report system, which includes a reduced set of fields focused on capturing the type of incident as well as when and where it occurred. Records in the new system begin in June of 2015. The dataset for San Francisco includes police incident reports filed by officers and by individuals through self-service online reporting for non-emergency cases. Reports included are those for incidents that occurred starting January 1, 2018 onward and have been approved by a supervising officer.  
+
+Due to the time span of the two data is different, I only use the crime reports from 2018 to 2019. After removing those missing data, I have 159676 observations for reports of Boston, and 213438 observations for reports of San Francisco. The following are the variables and descriptions used in this project.  
+
+
+-Incident Datetime: The date and time when the incident occurred  
+
+-Incident Number: The number issued on the report  
+
+-Incident Code: System codes to describe a type of incident  
+
+-Incident Category: A category mapped on to the Incident Code used in statistics reporting  
+
+-Street: Street names that closest to the original incident  
+
+-Type Description: The description of the report type  
+
+-Latitude: Latitude of incident  
+
+-Longitude: Longitude of incident  
+
+# EDA  
+## 1.Bar Plot
+
+```{r, echo = F,message=FALSE}
+boston <- boston %>%
+ filter(!(DISTRICT %in% "")) %>%
+ filter(!(UCR_PART %in% ""))
+
+w1 = ggplot(boston) +
+ aes(x = DAY_OF_WEEK, fill = UCR_PART) +
+ geom_bar() +
+ scale_fill_brewer(palette = "GnBu") +
+ theme_gray() +
+ facet_wrap(vars(YEAR))+ labs(title  = "Bosotn", x = "Day of Week")+theme(axis.text.x = element_text(angle = 45,hjust = 1))
+```  
+
+```{r, echo = F,message=FALSE}
+w2 = ggplot(sanf) +
+ aes(x = Incident.Day.of.Week, fill = Report.Type.Code) +
+ geom_bar() +
+ scale_fill_brewer(palette = "YlOrRd") +
+ theme_minimal() +
+ facet_wrap(vars(Incident.Year))+theme_gray() +labs(title  = "San Francisco", x = "Day of Week")+theme(axis.text.x = element_text(angle = 45,hjust = 1))
+grid.arrange(w1, w2,nrow = 2)
+```  
+
+These four bar-plots show the relationships between the day of the week, year, and crime types. Fist of all, I find that Sunday has the least crime report in both Boston and San Francisco. In both cities, crimes are less in 2019 than in 2018. Furthermore, in Boston, the most reported crimes are type three crime, but the most reported crimes are II, which is the initial crime in San Francisco. Finally, from the total number of crimes on a different day of the week, I find that San Francisco has more crime than Boston since the highest number of the y-axis of San Francisco is over 15000. Compared to the amount of reported crime, Boston has a much lower criminal record in 2019 than in 2018, this phenomenon maybe because of the incomplete data of 2019.  
+
+## 2.Mapping
+
+```{r echo=F, message=FALSE}
+bos_map <- qmap(location = "Boston", zoom = 12)
+san_map <- qmap(location = "San Franciscon", zoom = 13)
+```  
+
+```{r, echo = F, warning=FALSE}
+b1 = boston %>% filter(UCR_PART == "Part One")
+b2 = boston %>% filter(UCR_PART == "Part Two")
+b3 = boston %>% filter(UCR_PART == "Part Three")
+b4 = boston %>% filter(UCR_PART == "Other")
+
+plot1 = bos_map + geom_point(data = b1, size = 0.1,aes(x = Long, y = Lat, colour = UCR_PART)) + scale_colour_manual(values = c("red")) + labs(x = "Longitude", y = "Latitude")  
+plot2 = bos_map + geom_point(data = b2, size = 0.1 ,aes(x = Long, y = Lat, colour = UCR_PART)) + scale_colour_manual(values = c("orange")) + labs(x = "Longitude", y = "Latitude")  
+plot3 = bos_map + geom_point(data = b3, size = 0.1, aes(x = Long, y = Lat, colour = UCR_PART)) + scale_colour_manual(values = c("yellow")) + labs(x = "Longitude", y = "Latitude")  
+plot4 = bos_map + geom_point(data = b4, size = 0.1, aes(x = Long, y = Lat, colour = UCR_PART)) + scale_colour_manual(values = c("green")) + labs(x = "Longitude", y = "Latitude")  
+grid.arrange(plot1, plot2, plot3,plot4,nrow = 2,top="Map of Boston")
+```  
+The map of different crime types for Boston shows that most crimes occur around Boston Common and South End. The farther away from the city center, the fewer crimes occur, so Jamaica Plain is a relatively safer place.
+
+
+```{r, echo = F,warning=FALSE}
+s1 = sanf %>% filter(Report.Type.Code == "II")
+s2 = sanf %>% filter(Report.Type.Code == "VI")
+s3 = sanf %>% filter(Report.Type.Code == "IS")
+s4 = sanf %>% filter(Report.Type.Code == "VS")
+
+figure1 = san_map + geom_point(data = s1, size = 0.1, aes(x = Longitude, y = Latitude, colour = Report.Type.Code)) + scale_colour_manual(values = c("red")) + labs(x = "Longitude", y = "Latitude")  
+figure2 = san_map + geom_point(data = s2, size = 0.1, aes(x = Longitude, y = Latitude, colour = Report.Type.Code)) + scale_colour_manual(values = c("orange")) + labs(x = "Longitude", y = "Latitude")  
+figure3 = san_map + geom_point(data = s3, size = 0.1, aes(x = Longitude, y = Latitude, colour = Report.Type.Code)) + scale_colour_manual(values = c("yellow")) + labs(x = "Longitude", y = "Latitude")  
+figure4 = san_map + geom_point(data = s4, size = 0.1, aes(x = Longitude, y = Latitude, colour = Report.Type.Code)) + scale_colour_manual(values = c("green")) + labs(x = "Longitude", y = "Latitude")  
+grid.arrange(figure1, figure2, figure3,figure4,nrow = 2,top="Map of San Franciscon")
+```
+The map of different crime types for San Francisco shows that most crimes occur around Tenderloin and North Beach. Unlike Boston, the crimes that happened in San Francisco were distributed evenly. The only place where has fewer points than others is a park, which means the population density is lower than in other areas.
+
+## 3.Text Analysis
+```{r, echo = F,warning=FALSE, message=FALSE}
+bos_offense = boston %>%
+    group_by(OFFENSE_CODE_GROUP) %>%
+    summarize(Total = n()) %>%
+ top_n(40)
+
+bos_offense$CODE<- gsub("([A-Za-z]+).*", "\\1", bos_offense$OFFENSE_CODE_GROUP)
+
+
+wordcloud(words = bos_offense$CODE, freq = bos_offense$Total, min.freq = 1,
+          max.words=100, rot.per=0.15, random.order=FALSE,
+          colors=brewer.pal(10, "Dark2"))
+```  
+
+The word cloud of crimes in Boston indicates that motor vehicle accident response, medical assistance, and larceny are the three most common crimes in Boston. 
+
+
+```{r, echo = F,warning=FALSE,message=FALSE}
+san_offense = sanf %>%
+    group_by(Incident.Category) %>%
+    summarize(Total = n()) %>%
+ top_n(40)
+
+san_offense$Category<- gsub("([A-Za-z]+).*", "\\1", san_offense$Incident.Category)
+
+
+wordcloud(words = san_offense$Category, freq = san_offense$Total, min.freq = 1,
+          max.words=100, rot.per=0.15, random.order=FALSE,
+          colors=brewer.pal(10, "Dark2"))
+
+```  
+
+The word cloud of crimes in San Francisco shows that larceny theft and other miscellaneous are the most common crimes in San Francisco. Furthermore, larceny theft occurs twice as often as other miscellaneous. The data shows that the total records of larceny theft are 41948, and the total records of other miscellaneous are 20835.  
+
+## 4.Line Plor  
+```{r,echo = F}
+boston_five = boston %>% filter(OFFENSE_CODE_GROUP == "Motor Vehicle Accident Response" | OFFENSE_CODE_GROUP == "Medical Assistance"|OFFENSE_CODE_GROUP == "Larceny"|OFFENSE_CODE_GROUP == "Investigate Person"|OFFENSE_CODE_GROUP == "Other"|OFFENSE_CODE_GROUP == "Simple Assault")
+
+boston_five = boston_five%>%dplyr::select(YEAR,MONTH,OFFENSE_CODE_GROUP)
+boston_five =boston_five%>%group_by(YEAR,MONTH)%>%count(OFFENSE_CODE_GROUP)
+
+ggplot(boston_five, aes(x = MONTH, y =n,group = OFFENSE_CODE_GROUP,color = OFFENSE_CODE_GROUP))+
+  facet_wrap(vars(YEAR))+geom_line(aes(linetype =OFFENSE_CODE_GROUP))+
+  labs(x = "Month", y = "Amount of Crime", title = "Changes of different crime among month in Boston")+
+  geom_point()+theme(axis.text.x = element_text(angle = 45,hjust = 1))
+```  
+This line plot shows the changes in the most six common crime in Boston. From the plot, I find reported crimes are hight in May both in 2018 and in 2019, and reported crimes are low in February. The frequency of these six crimes has not changed much between these two years. Therefore, based on the first barplot, the number of criminal records decreased may be caused by the decreasing of other rare crime types.  
+
+
+```{r,echo = F}
+sanf = separate(sanf,Incident.Date,into = c("year","month","day"),sep = "/")
+sanf_five = sanf %>% filter(Incident.Category == "Larceny Theft" | Incident.Category == "Other Miscellaneous"|Incident.Category == "Non-Criminal"|Incident.Category == "Assault"|Incident.Category == "Malicious Mischief"|Incident.Category == "Burglary")
+
+sanf_five = sanf_five%>%dplyr::select(Incident.Year,month,Incident.Category)
+sanf_five = sanf_five%>%group_by(Incident.Year,month)%>%count(Incident.Category)
+
+ggplot(sanf_five, aes(x = month, y =n,group = Incident.Category,color = Incident.Category))+
+  facet_wrap(vars(Incident.Year))+geom_line(aes(linetype =Incident.Category))+
+  labs(x = "Month", y = "Amount of Crime", title = "Changes of different crime among month in San Francisco")+
+  geom_point()+theme(axis.text.x = element_text(angle = 45,hjust = 1))
+
+```  
+Same as Boston, the reported crimes of San Francisco are low in February, but the relatively high records of crimes is in August. Furthermore, the sudden drop in crime rates in November 2019 should also be due to incomplete data. From the line plot of San Francisco, I can get the same information as from the word cloud, larceny theft occurs twice as often as other miscellaneous.  
+
+
+## 5.Mapping
+```{r, echo = F,warning=FALSE}
+mapping_bos <- boston %>%
+  select(OFFENSE_CODE_GROUP, Long, Lat) %>%
+  filter(OFFENSE_CODE_GROUP == 'Motor Vehicle Accident Response')
+
+bos_map + geom_density_2d(aes(x = Long, y = Lat), data = mapping_bos) +
+  stat_density2d(data = mapping_bos, 
+    aes(x = Long, y = Lat, fill = ..level.., alpha = ..level..), size = 0.01, 
+    bins = 16, geom = "polygon") + scale_fill_gradient(low = "green", high = "red", 
+    guide = FALSE) + scale_alpha(range = c(0, 0.3), guide = FALSE)
+```  
+
+This map displays the frequency of motor vehicle accident response in Boston. The darker the color means the higher the rate of occurrence. Similar to the previous maps, Boston Common and South End have more reported crimes than other areas.  
+
+```{r, echo = F,warning=FALSE}
+mapping_san <- sanf %>%
+  select(Incident.Category, Longitude, Latitude) %>%
+  filter(Incident.Category == 'Larceny Theft')
+
+san_map + geom_density_2d(aes(x = Longitude, y = Latitude), data = mapping_san) +
+  stat_density2d(data = mapping_san, 
+    aes(x = Longitude, y = Latitude, fill = ..level.., alpha = ..level..), size = 0.01, 
+    bins = 16, geom = "polygon") + scale_fill_gradient(low = "green", high = "red", 
+    guide = FALSE) + scale_alpha(range = c(0, 0.3), guide = FALSE)
+```  
+
+This map shows the frequency of most common crime, larceny-theft, in San Francisco. Unexpectedly, almost all the larceny-theft crimes happen around Tenderloin, and a small percentage of crimes occur around North Beach.  
+
+
+# Conclusion
+-Similarities:  
+ Both cities have the lowest crime rates on Sunday and relatively few criminal records in February than the majority of other months. Furthermore, crime rates will be higher in densely populated areas, and the crime rate is lower near the park, such as Fenway Park and Forest Knolls.  
+ 
+-Differences:  
+ Based on the record of the type of crimes, three main types of the crime of Boston are closed. However, for San Francisco, the number of initial crimes is much more than the other three types. Most crimes in Boston occur in Downtown and South End, and the frequency of crimes in South End is higher and broader than in Downtown. But, most crimes happened close to downtown in San Francisco, and crime rates are low in other areas.  
+ 
+# References   
+
+https://en.wikipedia.org/wiki/San_Francisco  
+https://en.wikipedia.org/wiki/Boston  
+https://data.boston.gov/dataset/crime-incident-reports-august-2015-to-date-source-new-system  
+https://data.sfgov.org/Public-Safety/Police-Department-Incident-Reports-2018-to-Present/wg3w-h783  
+
+
