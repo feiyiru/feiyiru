@@ -1,0 +1,300 @@
+---
+title: "Final Project"
+author: "Yiru Fei"
+date: "4/19/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F,message = F,warning = F,fig.width=8, fig.height=4)
+library(dplyr)
+library(tidyverse)
+library(smoother)
+library(HDInterval)
+library(scales)
+library(kableExtra)
+library(data.table)
+```
+
+## Introduction
+
+In this project, I estimated the Rt, the effective reproduction number. This number means the number of people who become infected per infectious person at time t. R0 is the basic reproduction number of an epidemic. If R0 is greater than 1, the epidemic spreads quickly. If R0 is less than 1, the epidemic disappears before everyone becomes infected. And the flu has an R0 between 1 and 2. Measuring Rt can let us know when we might loosen restrictions. If we are able to reduce Rt to below 1, we can reduce the number of new cases and virus becomes manageable. 
+
+## Poisson Distribution
+
+The first step is that I assume the infection model is poisson distribution, and $\lambda$ represents the average rate of infections per day, then k represents the new cases on a day. So the function is given by  
+$$P(k|\lambda) = \frac{\lambda^k e^{-\lambda}}{k!}$$  
+The distribution of $\lambda$ over k, the likelihood function, is given by 
+$$L(k|\lambda) = \frac{\lambda^k e^{-\lambda}}{k!}$$
+According to the paper, Real Time Baysian Estimation of the Epidemic Potential of Emerging Infectious Diseases. Based on the standard epidemic susceptible-infected (SIR) model, $\gamma$ is the infectious period, the relationship between $R_t$ and $\lambda$ is given by
+$$b(R_t) = e^{\tau \gamma (R_t -1)}$$
+$$\Delta \frac{T(t)-T(t-\tau)}{\tau} = b(R_t)\Delta T(t)$$
+$$\lambda = k_{t-1}e^{\gamma (R_t -1)}$$
+
+According to Bayes' rule, the probability distribution of $R_t$ is 
+
+$$P(R_t|k_t) = \frac{P(R_t) L(k_t|R_t)}{P(k_t)}$$
+where $L(k_t|R_t)$ is likelihood function in terms of $R_t$.  
+
+If we use $P(R_{t-1}|k_{t-1})$ as prior, and $P(R_{t}|k_{t})$ as posterior, then we can get the equation as
+$$P(R_{t}|k_{t}) \propto L(k_t|R_t) *P(R_{t-1}|k_{t-1})$$
+If we assume t = 0, then $P(R_{t}|k_{t}) \propto \prod_{t=0}^{T}L(k_t|R_t) *P(R_0) = \prod_{t=0}^{T}L(k_t|R_t)$
+
+## Data Description
+
+I used the US COVID-19 Daily Cases with Basemap for the US from Harvard Dataverser. It contains state and county-level data, but in  this project I only used the data for New York and Massachusetts. The first step is to compute the number of new cases every day, and smooth it over a rolling window. The smoothing is essential to account for lags pronounced over weekends. I used the gaussian window smoothing function with 5 days of smoothing windows.
+
+
+```{r,echo=FALSE}
+confirm<- read.csv("us_state_confirmed_case.csv", header=FALSE)
+```
+
+```{r,echo=FALSE}
+confirm=  confirm %>% filter(V2 == "NAME"|V2 == "Massachusetts" | V2 == "New York" )
+daily = confirm %>% select(-(3:12))
+daily = t(daily) 
+daily = data.frame(daily)
+colnames(daily) = c("date","MA", "NY")
+covid = daily[-(1:2),]
+covid$date <- as.Date(covid$date)
+covid$MA = as.numeric(levels(covid$MA))[covid$MA]
+covid$NY = as.numeric(levels(covid$NY))[covid$NY]
+
+```
+
+```{r,echo=F}
+covid_mass = covid[,-3]
+colnames(covid_mass)[2] = "cases"
+#' Compute new cases and smooth them
+
+smooth_new_cases <- function(cases){
+  cases %>%
+    arrange(date) %>%
+    mutate(new_cases  = cases - shift(cases)) %>%
+    mutate(new_cases_smooth = round(
+      smoother::smth(new_cases, window = 5, tails = TRUE)
+    )) %>%
+    select(date, new_cases, new_cases_smooth)
+}
+
+
+new_case = covid_mass %>%
+  smooth_new_cases()
+
+new_case[sample(nrow(new_case), 6), ]%>%
+  kable()%>%
+  kable_styling()
+```
+
+```{r,echo=F}
+plot_new_cases <- function(cases){
+  cases %>%
+    ggplot(aes(x = date, y = new_cases)) +
+    geom_line( color = '1',group = 1) +
+    geom_line(aes(y = new_cases_smooth), color = "2",group = 1) +
+    scale_colour_manual(values=c("red", "blue"))+
+    scale_x_date(labels = date_format("%m-%d"),breaks = "1 week")+
+    labs(
+      title = "New cases per day",
+      subtitle = "Massachusetts",
+      x = NULL, y = NULL
+    )
+}
+
+covid_mass %>%
+  smooth_new_cases() %>%
+  plot_new_cases()
+```
+
+The black line represents daily new cases in Massachusetts, and the red line is the new cases after smoothing. This figure suggests that the number of new cases is increasing every day in Masschusetts, and reached daily new cases maxmimum on April 25th, then the growth rate is gradually slowing.
+
+## Calculate Rt
+
+The second step is to compute the likelihoods. I computed log-likelihoods instead of the likelihoods, since it is easier to smooth data over a rolling window. Therefore, when calculating the posterior probabilities, the formula is given by
+$$P(R_{t}|k_{t}) \propto  exp[\prod_{t=0}^{T}log(L(k_t|R_t))]$$
+
+```{r,echo =F}
+
+R_T_MAX = 12
+r_t_range = seq(0, R_T_MAX, length = R_T_MAX*100 + 1)
+GAMMA = 1/4
+
+compute_likelihood <- function(cases){
+  likelihood <- cases %>%
+    filter(new_cases_smooth > 0) %>%
+    mutate(
+      r_t = list(r_t_range),
+      lambda = map(lag(new_cases_smooth, 1), ~ .x * exp(GAMMA * (r_t_range - 1))),
+      likelihood_r_t = map2(new_cases_smooth, lambda, dpois, log = TRUE)
+    ) %>%
+    slice(-1) %>%
+    select(-lambda) %>%
+    unnest(c(likelihood_r_t, r_t))
+}
+```
+
+
+```{r,echo=F}
+compute_posterior <- function(likelihood){
+  likelihood %>%
+    arrange(date) %>%
+    group_by(r_t) %>%
+    mutate(posterior = exp(
+      zoo::rollapplyr(likelihood_r_t, 5, sum, partial = TRUE)
+    )) %>%
+    group_by(date) %>%
+    mutate(posterior = posterior / sum(posterior, na.rm = TRUE)) %>%
+    # HACK: NaNs in the posterior create issues later on. So we remove them.
+    mutate(posterior = ifelse(is.nan(posterior), 0, posterior)) %>%
+    ungroup() %>%
+    select(-likelihood_r_t)
+}
+
+post = covid_mass %>%
+  smooth_new_cases() %>%
+  compute_likelihood()%>%
+  compute_posterior()
+
+post[sample(nrow(post), 6), ]%>%
+  kable()%>%
+  kable_styling()
+```
+```{r,echo = F}
+plot_posteriors <- function(posteriors){
+  posteriors %>%
+    ggplot(aes(x = r_t, y = posterior, group = date)) +
+    geom_line(alpha = 0.2) +
+    labs(
+      title = expression(paste("Daily Posterior of R"[t], " by day")),
+      subtitle = "Massachusetts",
+      x = '',
+      y = ''
+    ) +
+    coord_cartesian(xlim = c(0.4, 4)) +
+    theme(legend.position = 'none')
+}
+
+covid_mass%>%
+  smooth_new_cases() %>%
+  compute_likelihood() %>%
+  compute_posterior() %>%
+  plot_posteriors()
+```  
+
+## Result
+
+The final step is to estimate the values of $R_t$ and the 95% density intervals surrounding them. Because using Bayesian methods, the model produce highest density interval (HDI). The HDI is wide has to be with the lack of information. Massachusetts seems have reduced Rt, and the gray band close to the orange point suggests that we may conclude that we are below the safety shreshold. After May Rt has dropped below 1, so the virus will slowly disappear in this case.  
+
+```{r,echo = F}
+# Estimate R_t and a 95% highest-density interval around it
+estimate_rt <- function(posteriors){
+  posteriors %>%
+    group_by(date) %>%
+    summarize(
+      r_t_simulated = list(sample(r_t_range, 10000, replace = TRUE, prob = posterior)),
+      r_t_most_likely = r_t_range[which.max(posterior)]
+    ) %>%
+    mutate(
+      r_t_lo = map_dbl(r_t_simulated, ~ hdi(.x)[1]),
+      r_t_hi = map_dbl(r_t_simulated, ~ hdi(.x)[2])
+    ) %>%
+    select(-r_t_simulated)
+}
+
+plot_estimates <- function(estimates){
+  estimates %>%
+    ggplot(aes(x = date, y = r_t_most_likely)) +
+    geom_point(color = "darkorange", alpha = 0.8, size = 4) +
+    geom_line(color = "#14243e",group = 1) +
+    geom_hline(yintercept = 1, linetype = 'dashed') +
+    geom_ribbon(
+      aes(ymin = r_t_lo, ymax = r_t_hi),
+      fill = 'darkred',
+      alpha = 0.2
+    ) +
+     scale_x_date(labels = date_format("%m-%d"),breaks = "1 week")+
+    labs(
+      title = expression('Real time R'[t]), x = '', y = '',
+      subtitle = "Massachusetts"
+    ) +
+    coord_cartesian(ylim = c(0, 4))
+}
+
+covid_mass %>%
+  smooth_new_cases() %>%
+  compute_likelihood() %>%
+  compute_posterior() %>%
+  estimate_rt() %>%
+  plot_estimates()
+
+
+```
+
+## States Compare
+```{r}
+covid_ny = covid[,-2]
+colnames(covid_ny)[2] = "cases"
+new_case_ny = covid_ny %>%
+  smooth_new_cases()
+```
+
+```{r}
+plot_new_cases_ny <- function(cases){
+  cases %>%
+    ggplot(aes(x = date, y = new_cases)) +
+    geom_line( color = '1',group = 1) +
+    geom_line(aes(y = new_cases_smooth), color = "2",group = 1) +
+    scale_colour_manual(values=c("red", "blue"))+
+    scale_x_date(labels = date_format("%m-%d"),breaks = "1 week")+
+    labs(
+      title = "New cases per day",
+      subtitle = "New York",
+      x = NULL, y = NULL
+    )
+}
+
+covid_ny %>%
+  smooth_new_cases()%>%
+  plot_new_cases_ny()
+
+```  
+
+I then explored New York cases, the above plot indicates that the daily new cases in New York show a normal ditribution, and the peak is probably in early April. After comparing with Massachusetts data, I found new cases in New York have increased dramatically a week earlier than Massachusetts, and reached its maximum also a week earlier than Massachusetts. So we may conclued that the infectivity of this virus is basically the same in the eastern United States, and it will take about two months from the outbreak to the end of the infection, which is very similar to the infection period in China. After checking the Rt, I realized the Rt has droped below 1 first time on April 6th, which is still a week earlier than Massachusetts.  
+
+```{r}
+plot_estimates_ny <- function(estimates){
+  estimates %>%
+    ggplot(aes(x = date, y = r_t_most_likely)) +
+    geom_point(color = "darkorange", alpha = 0.8, size = 4) +
+    geom_line(color = "#14243e",group = 1) +
+    geom_hline(yintercept = 1, linetype = 'dashed') +
+    geom_ribbon(
+      aes(ymin = r_t_lo, ymax = r_t_hi),
+      fill = 'darkred',
+      alpha = 0.2
+    ) +
+     scale_x_date(labels = date_format("%m-%d"),breaks = "1 week")+
+    labs(
+      title = expression('Real time R'[t]), x = '', y = '',
+      subtitle = "New Yokr"
+    ) +
+    coord_cartesian(ylim = c(0, 4))
+}
+
+
+covid_ny[1:98,] %>%
+  smooth_new_cases()%>%
+  compute_likelihood() %>%
+  compute_posterior() %>%
+  estimate_rt() %>%
+  plot_estimates_ny()
+```
+
+## Reference
+
+Systrom, Kevin. “The Metric We Need to Manage COVID-19.” Systrom, 15 Apr. 2020, systrom.com/blog/the-metric-we-need-to-manage-covid-19/.  
+
+“(Tutorial) Estimating COVID-19's in Real-Time (Replicating in R).” DataCamp Community, www.datacamp.com/community/tutorials/replicating-in-r-covid19.  
+
+Bettencourt, Luís M. A., and Ruy M. Ribeiro. “Real Time Bayesian Estimation of the Epidemic Potential of Emerging Infectious Diseases.” PLoS ONE, vol. 3, no. 5, 2008, doi:10.1371/journal.pone.0002185.
+
